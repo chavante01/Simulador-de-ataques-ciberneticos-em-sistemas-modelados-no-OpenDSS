@@ -78,6 +78,8 @@ prob_bernoulli = 0
 k0 = 0
 kr = 0
 kf = 0
+bky = np.zeros((6, 1))
+bku = np.zeros((4, 1))
 
 if modo == "1":
     enable_dos = True
@@ -98,7 +100,7 @@ elif modo == "5":
     enable_false_data_customizable = True
     print(" Todos os ataques ativados.")
 elif modo == "0":
-    print(" Nenhum ataque será simulado.")
+    print(" Nenhum ataque será simulado.")  
 else:
     print(" Opção inválida. Nenhum ataque ativado por padrão.")
 
@@ -112,9 +114,6 @@ elif modo == "2" or modo == "5":
     kf = float(input("Digite o valor desejado de kf: "))
 elif modo == "3" or modo == "5":
     print("\nInsira os valores dos Locais de Ocorrência do Ataque de Injeção de Dados Falsos: ")
-    bky = np.zeros((6, 1))
-    bku = np.zeros((4, 1))
-
     print("\n--- bku (atuadores) ---")
 
     if np.any(Gamma_u[0, :]):
@@ -460,6 +459,13 @@ def plotar_resultados_ataques(horas):
 dss = py_dss_interface.DSS()
 
 # ========================= CONTROLE SOC COM DEGRADAÇÃO =========================
+# variáveis globai do ataque simultâneo
+corrupcao_uk_false_data = 0
+corrupcao_yk_false_data = 0
+corrupcao_yk_DoS = 0
+corrupcao_uk_DoS = 0
+corrupcao_yk_customizavel = 0
+corrupcao_uk_customizavel = 0
 # Variáveis globais do ataque replay
 i_y = 0
 i_u = 0
@@ -598,40 +604,6 @@ y_tau_y = 0       # Valor do sensor antes do ataque
 u_tau_u = 0       # Valor do atuador antes do ataque
 dados_salvos_antes_do_ataque = False
 
-def ataque_combinado():
-    global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u #variáveis do ataque DoS
-    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria #variáveis dos sensores
-    global soc_min, soc_max, kW_ref, Idling_kW
-    # puxar o valor do soc_2 pra ficar de acordo com o gráfico
-    # Conjunto de sensores da bateria 
-    dss.circuit._set_active_element("Storage.Bateria")
-    soc_ataque = float(dss.dssproperties._value_read("23"))
-    kWh_bateria = float(dss.dssproperties._value_read("22"))
-    kW_bateria = dss.cktelement._powers()
-    kVA_bateria = math.sqrt((kW_bateria[0]**2) + (kW_bateria[1]**2))
-    tensao_bateria = dss.cktelement._voltages()
-    corrente_bateria = dss.cktelement._currents()
-
-    # Conjunto de atuadores
-    kW_ref = float(dss.dssproperties._value_read("5"))           
-    Idling_kW = float(dss.dssproperties._value_read("30"))
-
-    uk = np.array([
-        [soc_max],
-        [soc_min],
-        [kW_ref], 
-        [Idling_kW] 
-    ])
-    yk = np.array([  #sinal que deveria chegar ao controlador e detector de anomalias
-        [soc_ataque],
-        [kWh_bateria],
-        [kW_bateria[0]],
-        [tensao_bateria[0]],
-        [corrente_bateria[0]],
-        [kVA_bateria]
-    ])
-
-
 def false_data(): 
     global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria # variáveis dos sensores
     global soc_min, soc_max, kW_ref, Idling_kW
@@ -654,19 +626,21 @@ def false_data():
     ])
 
     yk = np.array([  # "matriz 6x1" sinal que deveria chegar ao controlador e detector de anomalias
-            [soc_ataque],
-            [kWh_bateria],
-            [kW_bateria[0]],
-            [tensao_bateria[0]],
-            [corrente_bateria[0]],
-            [kVA_bateria]
+        [soc_ataque],
+        [kWh_bateria],
+        [kW_bateria[0]],
+        [tensao_bateria[0]],
+        [corrente_bateria[0]],
+        [kVA_bateria]
     ])
 
-    
-    u_til_k = uk + (np.dot(Gamma_u, bku))
+
+    corrupcao_uk_false_data = (np.dot(Gamma_u, bku))
+    u_til_k = uk + corrupcao_uk_false_data
     resultado_ataque_false_data_1 = u_til_k
 
-    y_til_k = yk + (np.dot(Gamma_y, bky))
+    corrupcao_yk_false_data = (np.dot(Gamma_y, bky))
+    y_til_k = yk + corrupcao_yk_false_data
     resultado_ataque_false_data_2 = y_til_k
 
     # O Chat mandou colocar essas linhas
@@ -685,7 +659,7 @@ def false_data():
     corrente_false_injection_lista_sensores.append(float(resultado_ataque_false_data_2[4].item()))
     kVA_false_injection_lista_sensores.append(float(resultado_ataque_false_data_2[5].item()))
 
-    return resultado_ataque_false_data_1, resultado_ataque_false_data_2
+    return resultado_ataque_false_data_1, resultado_ataque_false_data_2, corrupcao_yk_false_data, corrupcao_uk_false_data
 
 def ataque_DoS():
     global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u #variáveis do ataque DoS
@@ -719,8 +693,10 @@ def ataque_DoS():
         [corrente_bateria[0]],
         [kVA_bateria]
     ])
-  
-    resultado = prob_bernoulli
+    #print(f"yk:{yk}")
+    # Gera valor binário (0 ou 1) com Bernoulli
+    #resultado = bernoulli(0.85)
+    resultado = 1 if random.random() < prob_bernoulli else 0
     # Chat mandou colocar abaixo
     if resultado == 1:
         intervalos_dos.append(x)
@@ -730,7 +706,24 @@ def ataque_DoS():
 
     Sku = np.eye(4) * resultado
 
+    # Sku = np.array([      #matriz binária que indica se o ataque DoS está sendo performado ou não, varia com o tempo
+    #     [resultado, 0, 0],  #depende do passo de simulação!!!
+    #     [0, resultado, 0],
+    #     [0, 0, resultado],   #3x3
+        
+    # ])
+
     Sky = np.eye(6) * resultado
+
+    # Sky = np.array([      #matriz binária que indica se o ataque DoS está sendo performado ou não, varia com o tempo
+    #     [resultado, 0, 0, 0, 0],  #depende do passo de simulação!!!
+    #     [0, resultado, 0, 0, 0],
+    #     [0, 0, resultado, 0, 0],   #5x5
+    #     [0, 0, 0, resultado, 0],
+    #     [0, 0, 0, 0, resultado]
+        
+    # ])
+    #print(f"Resultado Bernoulli: {resultado}")
 
     # Detecta transição de 0 → 1
     if resultado == 1 and estado_anterior == 0: # salva o valor do sensor e do atuador 
@@ -757,14 +750,18 @@ def ataque_DoS():
     estado_anterior = resultado  # atualiza para próxima chamada
 
     # Exibe estado atual
+    #print(f"y_tau_y: {y_tau_y}")
+    #print(f"dados_salvos_antes_do_ataque: {dados_salvos_antes_do_ataque}\n")
 
     Gamma_y_transposta = Gamma_y.T  #matriz gama y maiúsculo transposta
+    #multiplicação1 =  5x5 * 5x6 = 5x6 ####  multiplicacao2 = 5x6 * 6x1 = 5x1 ### multiplicacao3 = 6x5 * 5x1 = 6x1 
     #operações para negação de serviço dos sensores
     subtracaoy = yk - y_tau_y #diferença entre o sinal que deveria ser injetado no controlador e o último sinal medido antes do ataque   
     multiplicacao1y = np.dot(Sky, Gamma_y_transposta)  #multiplicação entre a matriz que indica se o ataque está ocorrendo em determinado tempo k e a matriz que mostra os sensores que o aversário domina
     multiplicacao2y= np.dot(multiplicacao1y, subtracaoy)
-    byk = multiplicacao2y * -1  #matriz resultante do ataque DoS
-    multiplicacao3y = np.dot(Gamma_y , byk) 
+    byk = multiplicacao2y * -1 #matriz resultante do ataque DoS
+    corrupcao_yk_false_data = np.dot(Gamma_y , byk)
+    multiplicacao3y = corrupcao_yk_DoS 
     y_til_k = yk + multiplicacao3y  #Sinal dos sensores negado 
     resultado_do_ataque_dos_1 = y_til_k
     #print(f"resultado do ataque: {resultado_do_ataque[0][0]}")
@@ -774,8 +771,9 @@ def ataque_DoS():
     subtracaou = uk - u_tau_u #diferença entre o sinal que deveria ser injetado no controlador e o último sinal medido antes do ataque   
     multiplicacao1u = np.dot(Sku, Gamma_u_transposta)  #multiplicação entre a matriz que indica se o ataque está ocorrendo em determinado tempo k e a matriz que mostra os sensores que o aversário domina
     multiplicacao2u = np.dot(multiplicacao1u, subtracaou)
-    buk = multiplicacao2u * -1  #matriz resultante do ataque DoS
-    multiplicacao3u = np.dot(Gamma_u , buk)
+    buk = multiplicacao2u * -1 #matriz resultante do ataque DoS
+    corrupcao_uk_false_data = np.dot(Gamma_u , buk)
+    multiplicacao3u = corrupcao_uk_DoS 
     u_til_k = uk + multiplicacao3u  #Sinal dos sensores negado 
     resultado_do_ataque_dos_2 = u_til_k
     #print(f"resultado do ataque: {resultado_do_ataque[0][0]}")
@@ -793,8 +791,8 @@ def ataque_DoS():
     corrente_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[4].item()))
     kVA_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[5].item()))
 
-    return resultado_do_ataque_dos_1, resultado_do_ataque_dos_2, multiplicacao3y, multiplicacao3u
-     
+    return resultado_do_ataque_dos_1, resultado_do_ataque_dos_2, corrupcao_uk_false_data, corrupcao_yk_false_data
+    
 def replay_attack():
     """
     k0 é o começo da gravação de dados.
@@ -822,8 +820,6 @@ def replay_attack():
 
     # Fase 1: coleta de dados
     if k0 <= x <= kr:
-        # Upsilon_y = Gamma_y.T        
-        # Upsilon_u = Gamma_u.T
 
         uk = np.array([
             [soc_max],
@@ -890,6 +886,7 @@ def replay_attack():
     soc_max_replay_atuadores.append(float(soc_max))
     soc_min_replay_atuadores.append(float(soc_min))
 
+    #adicionar os valores de kwref, soc max e mínimo no gráfico, também deve ser adicionado no return
     return soc_ataque, kWh_bateria, kW_bateria[0], tensao_bateria[0], corrente_bateria[0], kVA_bateria, kW_ref, Idling_kW, soc_max, soc_min
 
 def injecao_dados_falsos_customizavel():
@@ -909,20 +906,11 @@ def injecao_dados_falsos_customizavel():
 
     #======== Coloque a função aqui ==========================================================================================
     #Example:
-    def gerar_senoide(amplitude=100.0, frequencia=100.0, fase=0.0):
-        """
-        Gera uma senoide com os parâmetros especificados.
-        Parâmetros:
-        - amplitude: Amplitude da senoide
-        - frequencia: Frequência em Hz
-        - fase: Fase em radianos
-        """ 
-        t = np.arange(0, x)  # vetor de tempo
-        y = amplitude * np.sin(2 * np.pi * frequencia * t + fase)
-        return y
-    resultado = gerar_senoide()
+    def gerar_senoide(amplitude=100.0, frequencia=0.1, fase=0.0, x=0):
+        return amplitude * np.sin(2 * np.pi * frequencia * x + fase)
+
     #===========================================================================================================================
-    
+    resultado = gerar_senoide(amplitude=10.0, frequencia=0.05, fase=0.0, x=x)
     if 20 <= x <= 60: #intervalo de ataque
         yk = np.array([  # "matriz 6x1" sinal que deveria chegar ao controlador e detector de anomalias
             [soc_ataque],
@@ -954,24 +942,103 @@ def injecao_dados_falsos_customizavel():
           [resultado],
           [resultado]
         ])
-        u_til_k = uk + (np.dot(Gamma_u, bku))
+        corrupcao_uk_customizavel = (np.dot(Gamma_u, bku)) 
+        u_til_k = uk + corrupcao_uk_customizavel
         resultado_ataque_false_data_customizavel_1 = u_til_k
 
-        y_til_k = yk + (np.dot(Gamma_y, bky))
+        corrupcao_yk_customizavel = (np.dot(Gamma_y, bky))
+        y_til_k = yk + corrupcao_yk_customizavel
         resultado_ataque_false_data_customizavel_2 = y_til_k
 
-        soc_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[0]))
-        kWh_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[1]))
-        kW_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[2])) 
-        tensao_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[3]))
-        corrente_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[4]))
-        kVA_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[5]))
-        soc_max_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[0])) 
-        soc_min_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[1]))
-        kW_ref_false_injection_lista_customizavel_atuadores.append(float(resultado_ataque_false_data_customizavel_1[2]))
-        idling_kW_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[3]))
+    # else:
+    #     # Sem ataque → valores reais
+    #     y_til_k = yk
+    #     u_til_k = uk
 
-        return resultado_ataque_false_data_customizavel_1, resultado_ataque_false_data_customizavel_2
+        soc_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[0].item()))
+        kWh_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[1].item()))
+        corrente_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[4].item()))
+        kVA_false_injection_customizavel_lista_sensores.append(float(resultado_ataque_false_data_customizavel_2[5].item()))
+        soc_max_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[0].item())) 
+        soc_min_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[1].item()))
+        kW_ref_false_injection_lista_customizavel_atuadores.append(float(resultado_ataque_false_data_customizavel_1[2].item()))
+        idling_kW_false_injection_customizavel_lista_atuadores.append(float(resultado_ataque_false_data_customizavel_1[3].item()))
+
+        return resultado_ataque_false_data_customizavel_1, resultado_ataque_false_data_customizavel_2, corrupcao_yk_customizavel, corrupcao_uk_customizavel
+
+    
+    
+def somar_corrupcoes():
+    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria
+    global soc_min, soc_max, kW_ref, Idling_kW, lk_lista_y,lk_lista_u, x, i_y, i_u, k0, kr, kf, Gamma_y, Gamma_u
+    global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u
+
+    """
+    Soma as corrupções yk e uk de todos os ataques.
+    Retorna:
+        soma_corrupcao_yk: soma total das corrupções nos sensores
+        soma_corrupcao_uk: soma total das corrupções nos atuadores
+    """
+    # Inicializa as somas
+    soma_corrupcao_yk = np.zeros((6, 1))  # Matriz 6x1 para sensores
+    soma_corrupcao_uk = np.zeros((4, 1))  # Matriz 4x1 para atuadores
+    
+    # Obtém as corrupções de cada ataque
+    # False Data
+    _, _, corrupcao_yk_fd, corrupcao_uk_fd = false_data()
+    
+    # DoS
+    _, _, corrupcao_yk_dos, corrupcao_uk_dos = ataque_DoS()
+    
+    # Customizável
+    try:
+        _, _, corrupcao_yk_custom, corrupcao_uk_custom = injecao_dados_falsos_customizavel()
+    except:
+        # Se não estiver no intervalo de ataque, assume zero
+        corrupcao_yk_custom = np.zeros((6, 1))
+        corrupcao_uk_custom = np.zeros((4, 1))
+    
+    # Conjunto de sensores da bateria 
+    dss.circuit._set_active_element("Storage.Bateria")
+    soc_ataque = float(dss.dssproperties._value_read("23"))
+    kWh_bateria = float(dss.dssproperties._value_read("22"))
+    kW_bateria = dss.cktelement._powers()
+    kVA_bateria = math.sqrt((kW_bateria[0]**2) + (kW_bateria[1]**2))
+    tensao_bateria = dss.cktelement._voltages()
+    corrente_bateria = dss.cktelement._currents()
+    #conjunto de atuadores
+    kW_ref = float(dss.dssproperties._value_read("5"))
+    Idling_kW = float(dss.dssproperties._value_read("30"))
+
+    yk = np.array([  # "matriz 6x1" sinal que deveria chegar ao controlador e detector de anomalias
+        [soc_ataque],
+        [kWh_bateria],
+        [kW_bateria[0]],
+        [tensao_bateria[0]],
+        [corrente_bateria[0]],
+        [kVA_bateria]
+    ])
+
+    uk = np.array([
+        [soc_max],
+        [soc_min],
+        [kW_ref], 
+        [Idling_kW]  
+    ])
+    # Soma todas as corrupções
+    soma_corrupcao_yk = corrupcao_yk_fd + corrupcao_yk_dos + corrupcao_yk_custom
+    soma_corrupcao_uk = corrupcao_uk_fd + corrupcao_uk_dos + corrupcao_uk_custom
+    
+    u_til_k = uk + soma_corrupcao_uk
+    resultado_ataque_combinado_atuadores = u_til_k
+    y_til_k = yk + soma_corrupcao_yk
+    resultado_ataque_combinado_sensores = y_til_k 
+    return resultado_ataque_combinado_atuadores, resultado_ataque_combinado_sensores
+    
+    
+   
+   
+    
 
 def aplicar_degradacao_soc(soc_max_atual, soc_min_atual, taxa_degradacao, limite_superior=60, limite_inferior=40):
     novo_soc_max = max(soc_max_atual - taxa_degradacao, limite_superior)
@@ -1123,3 +1190,7 @@ plotar_resultados_ataques(horas)
 #         ])
 
 # print(f" Resultados salvos em: {saida_csv}")
+
+
+
+
