@@ -79,7 +79,8 @@ enable_replay = False
 enable_false_data = False
 enable_false_data_customizable = False
 enable_combined_attack = False
-prob_bernoulli = 0
+prob_bernoulli_1 = np.zeros((6,1))
+prob_bernoulli_2 = np.zeros((4,1))
 k0 = 0
 kr = 0
 kf = 0
@@ -116,25 +117,47 @@ if modo == "1" or modo == "5" or modo == "6":
     print("\nInsira o valor da Probabilidade de Bernoulli")
     if np.any(Gamma_u[0, :]):
         print("\nInsira o valor da probabilidade para o atuador de SOC máximo:")
+        prob_bernoulli_2[0] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[1, :]):
         print("\nInsira o valor da probabilidade para o atuador de SOC mínimo:")
+        prob_bernoulli_2[1] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[2, :]):
         print("\nInsira o valor da probabilidade para o atuador de kW_ref:")
+        prob_bernoulli_2[2] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[3, :]):
         print("\nInsira o valor da probabilidade para o atuador de Idling_kW:")
+        prob_bernoulli_2[3] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[0, :]):
         print("\nInsira o valor da probabilidade para o sensor de SOC:")
+        prob_bernoulli_1[0] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[1, :]):
-        print("\nInsira o valor da probabilidade para o sensor de Energia:")
+        print("\nInsira o valor da probabilidade para o sensor de Energia (kWh):")
+        prob_bernoulli_1[1] = float(input("Digite o valor desejado: "))
+
+    if np.any(Gamma_y[2, :]):
+        print("\nInsira o valor da probabilidade para o sensor de Bateria (kW):")
+        prob_bernoulli_1[2] = float(input("Digite o valor desejado: "))
+
+    if np.any(Gamma_y[3, :]):
+        print("\nInsira o valor da probabilidade para o sensor de Tensão da Bateria (V):")
+        prob_bernoulli_1[3] = float(input("Digite o valor desejado: "))
+
+    if np.any(Gamma_y[4, :]):
+        print("\nInsira o valor da probabilidade para o sensor de Corrente da Bateria (A):")
+        prob_bernoulli_1[4] = float(input("Digite o valor desejado: "))
+
+    if np.any(Gamma_y[5, :]):
+        print("\nInsira o valor da probabilidade para o sensor de Potência Aparente da Bateria (kVA):")
+        prob_bernoulli_1[5] = float(input("Digite o valor desejado: "))
 
 
 
-    prob_bernoulli = float(input("Digite o valor desejado: "))
+    #prob_bernoulli = float(input("Digite o valor desejado: "))
 if modo == "2" or modo == "5" or modo == "6":
     print("\nInsira os valores dos Locais de Ocorrência do Ataque de Replay: ")
     k0 = float(input("Digite o valor desejado de k0: "))
@@ -148,25 +171,25 @@ if modo == "3" or modo == "5" or modo == "6":
         print("\nCorrupção para SOC Máximo da Bateria:")
         a = float(input("  -> Limite inferior: "))
         b = float(input("  -> Limite superior: "))
-        #bku[0, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_u[1, :]):
         print("\nCorrupção para SOC Mínimo da Bateria:")
         c = float(input("  -> Limite inferior: "))
         d = float(input("  -> Limite superior: "))
-        #bku[1, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_u[2, :]):
         print("\nCorrupção para kW_ref da Bateria:")
         e = float(input("  -> Limite inferior: "))
         f = float(input("  -> Limite superior: "))
-        #bku[2, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_u[3, :]):
         print("\nCorrupção para Idling_kW da Bateria:")
         g = float(input("  -> Limite inferior: "))
         h = float(input("  -> Limite superior: "))
-        #bku[3, 0] = random.uniform(a, b)
+
 
     print("\n--- bky (sensores) ---")
 
@@ -174,37 +197,37 @@ if modo == "3" or modo == "5" or modo == "6":
         print("\nCorrupção para SOC da Bateria:")
         i = float(input("  -> Limite inferior: "))
         j = float(input("  -> Limite superior: "))
-        #bky[0, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_y[1, :]):
         print("\nCorrupção para Energia da Bateria (kWh):")
         k = float(input("  -> Limite inferior: "))
         l = float(input("  -> Limite superior: "))
-        #bky[1, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_y[2, :]):
         print("\nCorrupção para Potência Ativa da Bateria (kW):")
         m = float(input("  -> Limite inferior: "))
         n = float(input("  -> Limite superior: "))
-        #bky[2, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_y[3, :]):
         print("\nCorrupção para Tensão da Bateria (V):")
         o = float(input("  -> Limite inferior: "))
         p = float(input("  -> Limite superior: "))
-        #bky[3, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_y[4, :]):
         print("\nCorrupção para Corrente da Bateria (A):")
         q = float(input("  -> Limite inferior: "))
         r = float(input("  -> Limite superior: "))
-        #bky[4, 0] = random.uniform(a, b)
+
 
     if np.any(Gamma_y[5, :]):
         print("\nCorrupção para Potência Aparente da Bateria (kVA):")
         s = float(input("  -> Limite inferior: "))
         t = float(input("  -> Limite superior: "))
-        #bky[5, 0] = random.uniform(a, b)
+
 
 
 def plotar_resultados_ataques(horas):
@@ -954,8 +977,7 @@ def ataque_DoS():
         [kVA_bateria]
     ])
 
-    # Gera valor binário (0 ou 1) com Bernoulli
-    resultado = 1 if random.random() < prob_bernoulli else 0
+    resultado = 1 if (any(random.random() < prob for prob in prob_bernoulli_1) or any(random.random() < prob for prob in prob_bernoulli_2)) else 0
 
     # Chat mandou colocar abaixo
     if resultado == 1:
@@ -1281,7 +1303,8 @@ def somar_corrupcoes():
     soma_corrupcao_uk = corrupcao_uk_fd + corrupcao_uk_custom + uk
     
     # Gera valor binário (0 ou 1) com Bernoulli
-    resultado = 1 if random.random() < prob_bernoulli else 0
+    resultado = 1 if (any(random.random() < prob for prob in prob_bernoulli_1) or any(random.random() < prob for prob in prob_bernoulli_2)) else 0
+
 
     # Chat mandou colocar abaixo
     if resultado == 1:
