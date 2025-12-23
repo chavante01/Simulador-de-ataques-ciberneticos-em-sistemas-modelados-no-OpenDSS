@@ -10,6 +10,32 @@ import matplotlib.pyplot as plt
 import random
 import math
 
+def build_Gamma(n_total, selecionados):
+    """
+    n_total: número total de canais (sensores ou atuadores)
+    selecionados: lista de índices (0-based) dos canais atacados
+    retorna: Gamma (n_total x r), onde r = len(selecionados)
+    """
+    if selecionados is None:
+        selecionados = []
+    else:
+        selecionados = [int(x) for x in selecionados]
+    validos = []
+    for idx in selecionados:
+        if 0 <= idx < n_total:
+            validos.append(idx)
+        else:
+            print(f" Índice inválido ignorado: {idx}")
+
+    r = len(validos)
+    if r == 0:
+        return np.zeros((n_total, 0)), []
+
+    Gamma = np.zeros((n_total, r), dtype=float)
+    for col, idx in enumerate(validos):
+        Gamma[idx, col] = 1.0
+    return Gamma, validos
+
 def selecionar_alvos():
     # Dicionário de sensores
     sensores = {
@@ -31,34 +57,23 @@ def selecionar_alvos():
 
     # ---- Sensores ----
     print("\nSensores disponíveis para ataque:")
-
     for idx, nome in sensores.items():
         print(f"[{idx}]: {nome}")
-    entrada_sensores = input("\nDigite os índices dos sensores para ataque (ex: 0,2,4): ")
-    selecionados_sensores = list(map(int, entrada_sensores.strip().split(",")))
-
-    Gamma_y = np.zeros((6, 6))  # Matriz 6x6
-    for idx in selecionados_sensores:
-        if 0 <= idx <= 5:
-            Gamma_y[idx, idx] = 1
-        else:
-            print(f" Índice de sensor inválido ignorado: {idx}")
+    entrada_sensores = input("\nDigite os índices dos sensores para ataque (ex: 0,2,4): ").strip()
+    selecionados_sensores = [] if entrada_sensores == "" else [int(x) for x in entrada_sensores.split(",")]
 
     # ---- Atuadores ----
     print("\nAtuadores disponíveis para ataque:")
     for idx, nome in atuadores.items():
         print(f"[{idx}]: {nome}")
-    entrada_atuadores = input("\nDigite os índices dos atuadores para ataque (ex: 0,2): ")
-    selecionados_atuadores = list(map(int, entrada_atuadores.strip().split(",")))
+    entrada_atuadores = input("\nDigite os índices dos atuadores para ataque (ex: 0,2): ").strip()
+    selecionados_atuadores = [] if entrada_atuadores == "" else [int(x) for x in entrada_atuadores.split(",")]
 
-    Gamma_u = np.zeros((4, 4))  
-    for idx in selecionados_atuadores:
-        if 0 <= idx <= 3:
-            Gamma_u[idx, idx] = 1
-        else:
-            print(f" Índice de atuador inválido ignorado: {idx}")
+    # constroem as Γ compactas
+    Gamma_y, selec_y = build_Gamma(6, selecionados_sensores)  # (6, r_y)
+    Gamma_u, selec_u = build_Gamma(4, selecionados_atuadores) # (4, r_u)
 
-    return Gamma_y, Gamma_u
+    return Gamma_y, Gamma_u, selec_y, selec_u
 
 print("\n=== SIMULADOR DE ATAQUES CIBERFÍSICOS NA BATERIA ===")
 print("Escolha o(s) ataque(s) a simular:")
@@ -72,21 +87,21 @@ print("[0] Sem ataques\n")
 
 modo = input("Digite a opção desejada: ")
 
-Gamma_y, Gamma_u = selecionar_alvos()
+Gamma_y, Gamma_u, selec_y, selec_u = selecionar_alvos()
 
 enable_dos = False
 enable_replay = False
 enable_false_data = False
 enable_false_data_customizable = False
 enable_combined_attack = False
-prob_bernoulli_1 = np.zeros((6,1))
-prob_bernoulli_2 = np.zeros((4,1))
+prob_bernoulli_sensores = np.zeros((6,1))
+prob_bernoulli_atuadores = np.zeros((4,1))
 k0 = 0
 kr = 0
 kf = 0
 a = b = c = d = e = f = g = h = i = j = k = l = m = n = o = p = q = r = s = t = 0
-bky = np.zeros((6, 1))
-bku = np.zeros((4, 1))
+bky = np.zeros((Gamma_y.shape[1], 1))
+bku = np.zeros((Gamma_u.shape[1], 1))
 
 if modo == "1":
     enable_dos = True
@@ -114,51 +129,48 @@ else:
     print(" Opção inválida. Nenhum ataque ativado por padrão.")
 
 if modo == "1" or modo == "5" or modo == "6":
-    print("\nInsira o valor da Probabilidade de Bernoulli")
     if np.any(Gamma_u[0, :]):
         print("\nInsira o valor da probabilidade para o atuador de SOC máximo:")
-        prob_bernoulli_2[0] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_atuadores[0] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[1, :]):
         print("\nInsira o valor da probabilidade para o atuador de SOC mínimo:")
-        prob_bernoulli_2[1] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_atuadores[1] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[2, :]):
         print("\nInsira o valor da probabilidade para o atuador de kW_ref:")
-        prob_bernoulli_2[2] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_atuadores[2] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_u[3, :]):
         print("\nInsira o valor da probabilidade para o atuador de Idling_kW:")
-        prob_bernoulli_2[3] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_atuadores[3] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[0, :]):
         print("\nInsira o valor da probabilidade para o sensor de SOC:")
-        prob_bernoulli_1[0] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[0] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[1, :]):
         print("\nInsira o valor da probabilidade para o sensor de Energia (kWh):")
-        prob_bernoulli_1[1] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[1] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[2, :]):
         print("\nInsira o valor da probabilidade para o sensor de Bateria (kW):")
-        prob_bernoulli_1[2] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[2] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[3, :]):
         print("\nInsira o valor da probabilidade para o sensor de Tensão da Bateria (V):")
-        prob_bernoulli_1[3] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[3] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[4, :]):
         print("\nInsira o valor da probabilidade para o sensor de Corrente da Bateria (A):")
-        prob_bernoulli_1[4] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[4] = float(input("Digite o valor desejado: "))
 
     if np.any(Gamma_y[5, :]):
         print("\nInsira o valor da probabilidade para o sensor de Potência Aparente da Bateria (kVA):")
-        prob_bernoulli_1[5] = float(input("Digite o valor desejado: "))
+        prob_bernoulli_sensores[5] = float(input("Digite o valor desejado: "))
 
 
-
-    #prob_bernoulli = float(input("Digite o valor desejado: "))
-if modo == "2" or modo == "5" or modo == "6":
+if modo == "2" or modo == "5":
     print("\nInsira os valores dos Locais de Ocorrência do Ataque de Replay: ")
     k0 = float(input("Digite o valor desejado de k0: "))
     kr = float(input("Digite o valor desejado de kr: "))
@@ -238,12 +250,12 @@ def plotar_resultados_ataques(horas):
     step_size = 1  # passos de 1 hora
 
     # === FLAGS DE SENSOR E ATUADOR ===
-    sensor_soc = np.any(Gamma_y[:, 0])
-    sensor_kwh = np.any(Gamma_y[:, 1])
-    sensor_kw = np.any(Gamma_y[:, 2])
-    sensor_v = np.any(Gamma_y[:, 3])
-    sensor_i = np.any(Gamma_y[:, 4])
-    sensor_kva = np.any(Gamma_y[:, 5])
+    sensor_soc = np.any(Gamma_y[0, :])
+    sensor_kwh = np.any(Gamma_y[1, :])
+    sensor_kw = np.any(Gamma_y[2, :])
+    sensor_v = np.any(Gamma_y[3, :])
+    sensor_i = np.any(Gamma_y[4, :])
+    sensor_kva = np.any(Gamma_y[5, :])
 
 
     atuador_soc_max = np.any(Gamma_u[0, :])
@@ -298,188 +310,192 @@ def plotar_resultados_ataques(horas):
     if enable_dos and sensor_soc:
         plt.figure()
         plt.plot(horas, soc_dos_lista_sensores, label="SOC Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_soc:
         plt.figure()
         plt.plot(horas, soc_false_injection_lista_sensores, label="SOC Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("SOC - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_soc:
         plt.figure()
         plt.plot(horas, soc_replay_lista_sensores, label="SOC Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("SOC - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_soc:
         plt.figure()
         plt.plot(horas, soc_false_injection_customizavel_lista_sensores, label="SOC Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("SOC - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_soc:
         plt.figure()
         plt.plot(horas, soc_ataque_combinado, label="SOC Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_dos, step_size)
-        #plot_attack_regions(time_attack_false_data, step_size)
-        #plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(mask_dos_sensores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # Energia
     if enable_dos and sensor_kwh:
         plt.figure()
         plt.plot(horas, kWh_dos_lista_sensores, label="kWh Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[1], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Energia (kWh) - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_kwh:
         plt.figure()
         plt.plot(horas, kWh_false_injection_lista_sensores, label="kWh Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Energia (kWh) - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_kwh:
         plt.figure()
         plt.plot(horas, kWh_replay_lista_sensores, label="kWh Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Energia (kWh) - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_kwh:
         plt.figure()
         plt.plot(horas, kWh_false_injection_customizavel_lista_sensores, label="kWh Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Energia (kWh) - False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_kwh:
         plt.figure()
         plt.plot(horas, kwh_ataque_combinado, label="kWh Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_sensores[1], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Energia (kWh) - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # Potência ativa (kW)
     if enable_dos and sensor_kw:
         plt.figure()
         plt.plot(horas, kW_dos_lista_sensores, label="kW Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[2], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Potência Ativa (kW) - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_kw:
         plt.figure()
         plt.plot(horas, kW_false_injection_lista_sensores, label="kW Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Potência Ativa (kW) - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_kw:
         plt.figure()
         plt.plot(horas, kW_replay_lista_sensores, label="kW Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Potência Ativa (kW) - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_kw:
         plt.figure()
         plt.plot(horas, kW_false_injection_customizavel_lista_sensores, label="kW Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Potência Ativa (kW) - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_kw:
         plt.figure()
         plt.plot(horas, kW_ataque_combinado, label="kW Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_sensores[2], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Potência Ativa (kW) - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()    
     
     # Tensão
     if enable_dos and sensor_v:
         plt.figure()
         plt.plot(horas, tensao_dos_lista_sensores, label="Tensão Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Tensão - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_v:
         plt.figure()
         plt.plot(horas, tensao_false_injection_lista_sensores, label="Tensão Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Tensão - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_v:
         plt.figure()
         plt.plot(horas, tensao_replay_lista_sensores, label="Tensão Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Tensão - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_v:
         plt.figure()
         plt.plot(horas, tensao_false_injection_customizavel_lista_sensores, label="Tensão Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Tensão - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_v:
         plt.figure()
         plt.plot(horas, tensao_ataque_combinado, label="Tensão Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_sensores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Tensão - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()    
 
     # Corrente
     if enable_dos and sensor_i:
         plt.figure()
         plt.plot(horas, corrente_dos_lista_sensores, label="Corrente Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[4], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Corrente - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_i:
         plt.figure()
         plt.plot(horas, corrente_false_injection_lista_sensores, label="Corrente Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Corrente - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_i:
         plt.figure()
         plt.plot(horas, corrente_replay_lista_sensores, label="Corrente Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Corrente - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_i:
         plt.figure()
         plt.plot(horas, corrente_false_injection_customizavel_lista_sensores, label="Corrente Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Corrente - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_i:
         plt.figure()
         plt.plot(horas, corrente_ataque_combinado, label="Corrente Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_sensores[4], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Corrente - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()        
 
     # kVA
     if enable_dos and sensor_kva:
         plt.figure()
         plt.plot(horas, kVA_dos_lista_sensores, label="kVA Sensor DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_sensores[5], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Potência Aparente (kVA) - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and sensor_kva:
         plt.figure()
         plt.plot(horas, kVA_false_injection_lista_sensores, label="kVA Sensor False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Potência Aparente (kVA) - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and sensor_kva:
         plt.figure()
         plt.plot(horas, kVA_replay_lista_sensores, label="kVA Sensor Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Potência Aparente (kVA) - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and sensor_kva:
         plt.figure()
         plt.plot(horas, kVA_false_injection_customizavel_lista_sensores, label="kVA Sensor False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Potência Aparente (kVA) - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and sensor_kva:
         plt.figure()
         plt.plot(horas, kVA_ataque_combinado, label="kVA Sensor Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_sensores[5], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Potência Aparente (kVA) - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # Soc_Máx
@@ -487,31 +503,32 @@ def plotar_resultados_ataques(horas):
     if enable_dos and atuador_soc_max:
         plt.figure()
         plt.plot(horas, soc_max_dos_atuadores, label="SOC Máx Atuador DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_atuadores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC Máximo - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and atuador_soc_max:
         plt.figure()
         plt.plot(horas, soc_max_false_injection_lista_atuadores, label="SOC Máx Atuador False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("SOC Máximo - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and atuador_soc_max:
         plt.figure()
         plt.plot(horas, soc_max_replay_atuadores, label="SOC Máx Atuador Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("SOC Máximo - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and atuador_soc_max:
         plt.figure()
         plt.plot(horas, soc_max_false_injection_customizavel_lista_atuadores, label="SOC Máx Atuador False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("SOC Máximo - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and atuador_soc_max:
         plt.figure()
         plt.plot(horas, soc_max_ataque_combinado, label="SOC Máx Atuador Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_atuadores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC Máximo - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # Soc_Mín
@@ -519,31 +536,32 @@ def plotar_resultados_ataques(horas):
     if enable_dos and atuador_soc_min:
         plt.figure()
         plt.plot(horas, soc_min_dos_atuadores, label="SOC Mín Atuador DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_atuadores[1], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC Mínimo - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and atuador_soc_min:
         plt.figure()
         plt.plot(horas, soc_min_false_injection_lista_atuadores, label="SOC Mín Atuador False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("SOC Mínimo - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and atuador_soc_min:
         plt.figure()
         plt.plot(horas, soc_min_replay_atuadores, label="SOC Mín Atuador Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("SOC Mínimo - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and atuador_soc_min:
         plt.figure()
         plt.plot(horas, soc_min_false_injection_customizavel_lista_atuadores, label="SOC Mín Atuador False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("SOC Mínimo - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and atuador_soc_min:
         plt.figure()
         plt.plot(horas, soc_min_ataque_combinado, label="SOC Mín Atuador Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_atuadores[1], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("SOC Mínimo - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # kW_ref
@@ -551,31 +569,32 @@ def plotar_resultados_ataques(horas):
     if enable_dos and atuador_kw_ref:
         plt.figure()
         plt.plot(horas, kW_ref_dos_atuadores, label="kW_ref Atuador DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_atuadores[2], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("kW_ref - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and atuador_kw_ref:
         plt.figure()
         plt.plot(horas, kW_ref_false_injection_lista_atuadores, label="kW_ref Atuador False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("kW_ref - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and atuador_kw_ref:
         plt.figure()
         plt.plot(horas, kW_ref_replay_atuadores, label="kW_ref Atuador Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("kW_ref - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and atuador_kw_ref:
         plt.figure()
         plt.plot(horas, kW_ref_false_injection_lista_customizavel_atuadores, label="kW_ref Atuador False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("kW_ref - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and atuador_kw_ref:
         plt.figure()
         plt.plot(horas, kW_ref_ataque_combinado, label="kW_ref Atuador Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_atuadores[2], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("kW_ref - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     # Idling_kW
@@ -583,35 +602,36 @@ def plotar_resultados_ataques(horas):
     if enable_dos and atuador_idling_kw:
         plt.figure()
         plt.plot(horas, idling_kW_dos_atuadores, label="Idling_kW Atuador DoS")
-        plot_attack_regions(time_attack_dos, step_size)
+        plot_attack_regions(mask_dos_atuadores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Idling_kW - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data and atuador_idling_kw:
         plt.figure()
         plt.plot(horas, idling_kW_false_injection_lista_atuadores, label="Idling_kW Atuador False Data")
-        plot_attack_regions(time_attack_false_data, step_size)
+        plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
         plt.title("Idling_kW - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_replay and atuador_idling_kw:
         plt.figure()
         plt.plot(horas, idling_kW_replay_atuadores, label="Idling_kW Atuador Replay")
-        plot_attack_regions(time_attack_replay, step_size)
+        plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
+        plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
         plt.title("Idling_kW - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_false_data_customizable and atuador_idling_kw:
         plt.figure()
         plt.plot(horas, idling_kW_false_injection_customizavel_lista_atuadores, label="Idling_kW Atuador False Data Customizable")
-        plot_attack_regions(time_attack_false_data_customizable, step_size)
+        plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
         plt.title("Idling_kW - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     if enable_combined_attack and atuador_idling_kw:
         plt.figure()
         plt.plot(horas, idling_kW_ataque_combinado, label="Idling_kW Atuador Ataques Combinados")
-        #plot_attack_regions(time_attack_, step_size)
+        plot_attack_regions(mask_dos_atuadores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
         plt.title("Idling_kW - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
 
     #Plotagem sem os Ataques
-    if modo == 0:
+    if modo == "0":
         # SOC
         plt.figure()
         plt.plot(horas, soc_lista, label="SOC sem Ataques")
@@ -721,6 +741,7 @@ corrente_replay_lista_sensores = []
 kVA_replay_lista_sensores = []
 soc_max_replay_atuadores = []
 soc_min_replay_atuadores = []
+mask_replay_coleta = []
 
 # Listas para os valores de Ataque de Injeção de Dados Falsos
 soc_false_injection_lista_sensores = []
@@ -859,10 +880,30 @@ def atualizar_contagem_ciclos(soc, soc_max, soc_min, contador_ciclos, carga_comp
     return contador_ciclos, carga_completa, descarga_completa, soc_max, soc_min, soh
 
 # Variáveis globais
-estado_anterior = 0  # Começa como 0 para detectar o primeiro 1
-y_tau_y = 0       # Valor do sensor antes do ataque
-u_tau_u = 0       # Valor do atuador antes do ataque
-dados_salvos_antes_do_ataque = False
+estado_anterior_sensores = np.zeros(6)
+estado_anterior_atuadores = np.zeros(4)
+y_tau_y = np.zeros((6, 1))  # Para 6 sensores
+u_tau_u = np.zeros((4, 1))  # Para 4 atuadores
+
+# Estados anteriores INDIVIDUAIS para cada componente
+estado_anterior_sensores = np.zeros(6)  # 6 sensores (todos começam sem ataque)
+estado_anterior_atuadores = np.zeros(4)  # 4 atuadores (todos começam sem ataque)
+
+y_prev = None
+u_prev = None
+
+# fora da função (uma vez):
+ny, nu = 6, 4
+k_step = 0
+sens_t = [[] for _ in range(ny)]  
+sens_y = [[] for _ in range(ny)]   
+atu_t  = [[] for _ in range(nu)]
+atu_u  = [[] for _ in range(nu)]
+
+# Listas das Máscaras (sombreamento) dos Sensores e Atuadores para DoS
+mask_dos_sensores = [[] for _ in range(ny)]  
+mask_dos_atuadores = [[] for _ in range(nu)]
+
 
 def false_data(): 
     global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria # variáveis dos sensores
@@ -894,27 +935,39 @@ def false_data():
             [kVA_bateria]
     ])
 
-    if 30 <= x <= 60: #intervalo de ataque    
-        bky = np.array([
-          [random.uniform(i, j)],  # o sinal que você irá utilizar para corromper o sinal deve ser colocado dentro das células da matriz bky
-          [random.uniform(k, l)],
-          [random.uniform(m, n)],
-          [random.uniform(o, p)],
-          [random.uniform(q, r)],
-          [random.uniform(s, t)]
-        ])
+    if 100 <= x <= 130: #intervalo de ataque    
+        bky_random = [(i,j), (k,l), (m,n), (o,p), (q,r), (s,t)]
 
-        bku = np.array([
-          [random.uniform(a, b)],  # o sinal que você irá utilizar para corromper o sinal deve ser colocado dentro das células da matriz bky
-          [random.uniform(c, d)],
-          [random.uniform(e, f)],
-          [random.uniform(g, h)]
-        ])
+        bku_random = [(a,b), (c,d), (e,f), (g,h)]
 
-        corrupcao_uk_false_data = (np.dot(Gamma_u, bku))
+            # --- função auxiliar local ---
+        def build_b_random_from_selec(selec, bounds_list):
+            """Retorna (r x 1) array com random.uniform(bounds[idx]) para cada idx em selec."""
+            if not selec:
+                return np.zeros((0,1), dtype=float)
+            vals = [[random.uniform(*bounds_list[idx])] for idx in selec]
+            return np.array(vals, dtype=float)
+
+        # gera b (compacto) apenas para os canais dominados (ordem = selec_y / selec_u)
+        bky_random_compacto = build_b_random_from_selec(selec_y, bky_random)   # shape (r_y,1)
+        bku_random_compacto = build_b_random_from_selec(selec_u, bku_random)   # shape (r_u,1)
+
+        # soma com o bky/bku base (eles já foram inicializados antes como zeros com shape (r,1))
+        # garante que as shapes batem
+        if bky.size == 0:
+            bky_novo = bky_random_compacto  # possivelmente (0,1) ou (r_y,1)
+        else:
+            bky_novo = bky + bky_random_compacto
+
+        if bku.size == 0:
+            bku_novo = bku_random_compacto
+        else:
+            bku_novo = bku + bku_random_compacto
+
+        corrupcao_uk_false_data = (np.dot(Gamma_u, bku_novo))
         u_til_k = uk + corrupcao_uk_false_data
 
-        corrupcao_yk_false_data = (np.dot(Gamma_y, bky))
+        corrupcao_yk_false_data = (np.dot(Gamma_y, bky_novo))
         y_til_k = yk + corrupcao_yk_false_data
 
         intervalos_false_data.append(x)
@@ -928,27 +981,27 @@ def false_data():
         time_attack_false_data.append(0)
 
     #Agora os resultados do ataque são divididos em false_data_1 e false_data_2
-    soc_max_false_injection_lista_atuadores.append(float(u_til_k[0].item())) 
-    soc_false_injection_lista_sensores.append(float(y_til_k[0].item()))
-    soc_min_false_injection_lista_atuadores.append(float(u_til_k[1].item()))
-    kWh_false_injection_lista_sensores.append(float(y_til_k[1].item()))
-    kW_ref_false_injection_lista_atuadores.append(float(u_til_k[2].item()))
-    kW_false_injection_lista_sensores.append(float(y_til_k[2].item()))
-    idling_kW_false_injection_lista_atuadores.append(float(u_til_k[3].item()))
-    tensao_false_injection_lista_sensores.append(float(y_til_k[3].item()))
-    corrente_false_injection_lista_sensores.append(float(y_til_k[4].item()))
-    kVA_false_injection_lista_sensores.append(float(y_til_k[5].item()))
-
-    # Funciona chamar os elementos assim também:
-    # soc_false_injection_lista_sensores.append(resultado_ataque_false_data_2[0,0])
+    soc_max_false_injection_lista_atuadores.append(u_til_k[0])
+    soc_false_injection_lista_sensores.append(y_til_k[0])
+    soc_min_false_injection_lista_atuadores.append(u_til_k[1])
+    kWh_false_injection_lista_sensores.append(y_til_k[1])
+    kW_ref_false_injection_lista_atuadores.append(u_til_k[2])
+    kW_false_injection_lista_sensores.append(y_til_k[2])
+    idling_kW_false_injection_lista_atuadores.append(u_til_k[3])
+    tensao_false_injection_lista_sensores.append(y_til_k[3])
+    corrente_false_injection_lista_sensores.append(y_til_k[4])
+    kVA_false_injection_lista_sensores.append(y_til_k[5])
 
     return u_til_k, y_til_k, corrupcao_yk_false_data, corrupcao_uk_false_data
 
 def ataque_DoS():
-    global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u # variáveis do ataque DoS
-    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria # variáveis dos sensores
+    global estado_anterior_sensores, estado_anterior_atuadores, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u
+    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria
     global soc_min, soc_max, kW_ref, Idling_kW
-    # puxar o valor do soc_2 pra ficar de acordo com o gráfico
+    global y_prev, u_prev
+    global k_step, sens_t, sens_y, atu_t, atu_u
+    k_step += 1
+
     # Conjunto de sensores da bateria 
     dss.circuit._set_active_element("Storage.Bateria")
     soc_ataque = float(dss.dssproperties._value_read("23"))
@@ -968,7 +1021,8 @@ def ataque_DoS():
         [kW_ref], 
         [Idling_kW] 
     ])
-    yk = np.array([  #sinal que deveria chegar ao controlador e detector de anomalias
+    
+    yk = np.array([
         [soc_ataque],
         [kWh_bateria],
         [kW_bateria[0]],
@@ -977,91 +1031,111 @@ def ataque_DoS():
         [kVA_bateria]
     ])
 
-    resultado = 1 if (any(random.random() < prob for prob in prob_bernoulli_1) or any(random.random() < prob for prob in prob_bernoulli_2)) else 0
+    if y_prev is None:
+        y_prev = yk.copy()
+    if u_prev is None:
+        u_prev = uk.copy()
 
-    # Chat mandou colocar abaixo
-    if resultado == 1:
-        intervalos_dos.append(x)
-        time_attack_dos.append(1)
-    else:
-        time_attack_dos.append(0)
-
-    Sku = np.eye(4) * resultado
-    Sky = np.eye(6) * resultado
-
-    # Detecta transição de 0 → 1
-    if resultado == 1 and estado_anterior == 0: # salva o valor do sensor e do atuador 
-        y_tau_y = np.array([
-            [soc_ataque],
-            [kWh_bateria],
-            [kW_bateria[0]],
-            [tensao_bateria[0]],
-            [corrente_bateria[0]],
-            [kVA_bateria]
-        ])  
-
-        u_tau_u = np.array([
-            [soc_max],
-            [soc_min],
-            [kW_ref],  
-            [Idling_kW]
-        ])
-        dados_salvos_antes_do_ataque = True
-    else:
-        dados_salvos_antes_do_ataque = False
+    def bernoulli_individual(prob_sensores, prob_atuadores):
+        """
+        Gera ataques INDIVIDUAIS para cada sensor e atuador
+        """
+        # Para cada sensor (6 elementos) - ataque independente
+        resultado_sensores = []
+        for prob in prob_sensores:
+            aleatorio = random.random()
+            resultado_sensores.append(1 if aleatorio < prob else 0)
         
-    estado_anterior = resultado  # atualiza para próxima chamada
+        # Para cada atuador (4 elementos) - ataque independente  
+        resultado_atuadores = []
+        for prob in prob_atuadores:
+            aleatorio = random.random()
+            resultado_atuadores.append(1 if aleatorio < prob else 0)
+            
+        return np.array(resultado_sensores), np.array(resultado_atuadores)
+ 
+    # ⚠️ CORREÇÃO: Use arrays para as probabilidades
+    resultado_sensores, resultado_atuadores = bernoulli_individual(prob_bernoulli_sensores, prob_bernoulli_atuadores)
 
-    # Exibe estado atual
-    Gamma_y_transposta = Gamma_y.T  #matriz gama y maiúsculo transposta
-    #operações para negação de serviço dos sensores
-    subtracaoy = yk - y_tau_y #diferença entre o sinal que deveria ser injetado no controlador e o último sinal medido antes do ataque   
-    multiplicacao1y = np.dot(Sky, Gamma_y_transposta)  #multiplicação entre a matriz que indica se o ataque está ocorrendo em determinado tempo k e a matriz que mostra os sensores que o aversário domina
-    multiplicacao2y= np.dot(multiplicacao1y, subtracaoy)
-    byk = multiplicacao2y * -1  #matriz resultante do ataque DoS
-    corrupcao_yk_DoS = np.dot(Gamma_y , byk)
-    multiplicacao3y = corrupcao_yk_DoS
-    y_til_k = yk + multiplicacao3y  #Sinal dos sensores negado 
-    resultado_do_ataque_dos_1 = y_til_k
-    #print(f"resultado do ataque: {resultado_do_ataque[0][0]}")
+    # Matrizes de ataque DoS (dimensionadas pelos canais atacáveis)
+    m = Gamma_y.shape[1]   # nº de colunas de Gamma_y
+    p = Gamma_u.shape[1]   # nº de colunas de Gamma_u
 
-    Gamma_u_transposta = Gamma_u.T  #matriz gama y maiúsculo transposta
-    #operações para negação de serviço dos sensores
-    subtracaou = uk - u_tau_u #diferença entre o sinal que deveria ser injetado no controlador e o último sinal medido antes do ataque   
-    multiplicacao1u = np.dot(Sku, Gamma_u_transposta)  #multiplicação entre a matriz que indica se o ataque está ocorrendo em determinado tempo k e a matriz que mostra os sensores que o aversário domina
-    multiplicacao2u = np.dot(multiplicacao1u, subtracaou)
-    buk = multiplicacao2u * -1  #matriz resultante do ataque DoS
-    corrupcao_uk_DoS = np.dot(Gamma_u , buk)
-    multiplicacao3u = corrupcao_uk_DoS
-    u_til_k = uk + multiplicacao3u  #Sinal dos sensores negado 
-    resultado_do_ataque_dos_2 = u_til_k
-    #print(f"resultado do ataque: {resultado_do_ataque[0][0]}")
-    
-    # Imprimir resultado_do_ataque_1 e resultado_do_ataque_2
+    Sky = np.diag(np.asarray(resultado_sensores, dtype=float)[:m])  # (m x m)
+    Sku = np.diag(np.asarray(resultado_atuadores, dtype=float)[:p])  # (p x p)
 
-    soc_max_dos_atuadores.append(float(resultado_do_ataque_dos_2[0].item())) 
-    soc_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[0].item())) 
-    soc_min_dos_atuadores.append(float(resultado_do_ataque_dos_2[1].item()))
-    kWh_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[1].item()))
-    kW_ref_dos_atuadores.append(float(resultado_do_ataque_dos_2[2].item()))
-    kW_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[2].item()))
-    idling_kW_dos_atuadores.append(float(resultado_do_ataque_dos_2[3].item()))
-    tensao_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[3].item()))
-    corrente_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[4].item()))
-    kVA_dos_lista_sensores.append(float(resultado_do_ataque_dos_1[5].item()))
 
-    return resultado_do_ataque_dos_1, resultado_do_ataque_dos_2, corrupcao_yk_DoS, corrupcao_uk_DoS
+    # DETECTA TRANSIÇÃO 0→1 PARA CADA COMPONENTE INDIVIDUALMENTE
+    for i in range(len(resultado_sensores)):
+        if resultado_sensores[i] == 1 and estado_anterior_sensores[i] == 0:
+            # usa o ÚLTIMO valor válido (antes do ataque), não o atual
+            y_tau_y[i, 0] = y_prev[i, 0]
+
+    for i in range(len(resultado_atuadores)):
+        if resultado_atuadores[i] == 1 and estado_anterior_atuadores[i] == 0:
+            u_tau_u[i, 0] = u_prev[i, 0]
+
+
+    # Atualiza estados anteriores
+    estado_anterior_sensores = resultado_sensores.copy()
+    estado_anterior_atuadores = resultado_atuadores.copy()
+
+    Gamma_y_transposta = Gamma_y.T
+    subtracaoy = yk - y_tau_y
+    byk = - np.dot(Sky, np.dot(Gamma_y_transposta, subtracaoy))  # (m x 1)
+    corrupcao_yk_DoS = np.dot(Gamma_y, byk)                      # (ny x 1)
+    y_til_k = yk + corrupcao_yk_DoS
+
+    Gamma_u_transposta = Gamma_u.T
+    subtracaou = uk - u_tau_u
+    buk = - np.dot(Sku, np.dot(Gamma_u_transposta, subtracaou))  # (p x 1)
+    corrupcao_uk_DoS = np.dot(Gamma_u, buk)                      # (nu x 1)
+    u_til_k = uk + corrupcao_uk_DoS
+
+    # salvar somente quando há ataque
+    for i in range(ny):
+        mask_dos_sensores[i].append(int(resultado_sensores[i]))
+        if resultado_sensores[i] == 1:
+            sens_t[i].append(k_step)
+            sens_y[i].append(float(y_til_k[i, 0]))
+
+    for j in range(nu):
+        mask_dos_atuadores[j].append(int(resultado_atuadores[j]))
+        if resultado_atuadores[j] == 1:
+            atu_t[j].append(k_step)
+            atu_u[j].append(float(u_til_k[j, 0]))
+
+    # Armazena resultados
+    soc_max_dos_atuadores.append(u_til_k[0]) 
+    soc_dos_lista_sensores.append(y_til_k[0]) 
+    soc_min_dos_atuadores.append(u_til_k[1])
+    kWh_dos_lista_sensores.append(y_til_k[1])   
+    kW_ref_dos_atuadores.append(u_til_k[2])
+    kW_dos_lista_sensores.append(y_til_k[2])
+    idling_kW_dos_atuadores.append(u_til_k[3])
+    tensao_dos_lista_sensores.append(y_til_k[3])
+    corrente_dos_lista_sensores.append(y_til_k[4])
+    kVA_dos_lista_sensores.append(y_til_k[5])
+
+    # após calcular y_til_k e u_til_k (ou mesmo após os appends)
+    y_prev = yk.copy()
+    u_prev = uk.copy()
+
+    return y_til_k, u_til_k, corrupcao_yk_DoS, corrupcao_uk_DoS
      
 def replay_attack():
     """
     k0 é o começo da gravação de dados.
-    grava de k0 <=t <=kr.
-    e repete de kr<t <=kf.
-    """    
+    grava de k0 <= x <= kr.
+    repete de kr < x <= kf.
+    Implementação simples: salva vetores completos yk/uk e, no replay,
+    sobrescreve apenas as componentes atacadas.
+    """
     global lk_lista_y, lk_lista_u, x, i_y, i_u, k0, kr, kf
-    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria, Gamma_y #variáveis dos sensores
-    global soc_min, soc_max, kW_ref, Idling_kW, Gamma_u 
-    # Conjunto de sensores da bateria 
+    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria
+    global soc_min, soc_max, kW_ref, Idling_kW, Gamma_y, Gamma_u
+
+    # lê sensores/atuadores como antes
     dss.circuit._set_active_element("Storage.Bateria")
     soc_ataque = float(dss.dssproperties._value_read("23"))
     kWh_bateria = float(dss.dssproperties._value_read("22"))
@@ -1070,86 +1144,75 @@ def replay_attack():
     tensao_bateria = dss.cktelement._voltages()
     corrente_bateria = dss.cktelement._currents()
 
-    #Conjunto de atuadores do controlador da bateria 
     kW_ref = float(dss.dssproperties._value_read("5"))
     Idling_kW = float(dss.dssproperties._value_read("30"))
- 
-    Upsilon_y = Gamma_y.T        
-    Upsilon_u = Gamma_u.T
 
-    # Fase 1: coleta de dados
+    # cria vetores coluna na forma (n,1)
+    yk = np.array([
+        [soc_ataque],
+        [kWh_bateria],
+        [kW_bateria[0]],
+        [tensao_bateria[0]],
+        [corrente_bateria[0]],
+        [kVA_bateria]
+    ])
+    uk = np.array([
+        [soc_max],
+        [soc_min],
+        [kW_ref],
+        [Idling_kW]
+    ])
+
+    # indices atacados (linhas onde Gamma tem algum 1)
+    attacked_y_idx = np.where(Gamma_y.sum(axis=1) > 0)[0] 
+    attacked_u_idx = np.where(Gamma_u.sum(axis=1) > 0)[0]
+
+    # Fase 1: gravação (guarda vetores completos)
     if k0 <= x <= kr:
+        lk_lista_y.append(yk.copy())   # salva 6x1 completo
+        lk_lista_u.append(uk.copy())   # salva 4x1 completo
+        mask_replay_coleta.append(1)
 
-        uk = np.array([
-            [soc_max],
-            [soc_min],
-            [kW_ref], #adicionar esse método de chamada!!!!
-            [Idling_kW] 
-        ])
-        yk = np.array([  # "matriz 6x1" sinal que deveria chegar ao controlador e detector de anomalias
-            [soc_ataque],
-            [kWh_bateria],
-            [kW_bateria[0]],
-            [tensao_bateria[0]],
-            [corrente_bateria[0]],
-            [kVA_bateria]
-        ])
-        lku = np.dot(Upsilon_u, uk) # dados do atuador salvos antes do ataque
-        lky = np.dot(Upsilon_y, yk) # dados do sensor salvos antes do ataque
-        #print(lky)
-        lk_lista_y.append(lky)
-        lk_lista_u.append(lku)
-        #print(lk_lista)
-
-    # Fase 2: Repetição dos dados coletados
+    # Fase 2: replay
     elif kr < x <= kf:
-        n_elementos_y = len(lk_lista_y) #neste exemplo é 6
-        n_elementos_u = len(lk_lista_u)
-        # if kr < x <= kf:
-        #     intervalos_replay.append(x)
-        #     time_attack_replay.append(1)
-        # else:
-        #     time_attack_replay.append(0)
-        #print(n_elementos)
-        if i_y < (n_elementos_y): # i < 5
-            replay_y = lk_lista_y[i_y]
-            soc_ataque = replay_y[0][0]
-            kWh_bateria = replay_y[1][0]
-            kW_bateria[0] = replay_y[2][0]
-            tensao_bateria[0] = replay_y[3][0]
-            corrente_bateria[0] = replay_y[4][0]
-            kVA_bateria = replay_y[5][0]
-            #print(resultado_replay)
+        # se houver gravações, repetimos ciclicamente
+        if len(lk_lista_y) > 0:
+            if i_y >= len(lk_lista_y):
+                i_y = 0
+            replay_y = lk_lista_y[i_y]  # vetor 6x1 salvo
+            # sobrescreve só os componentes atacados
+            if attacked_y_idx.size > 0:
+                yk[attacked_y_idx, 0] = replay_y[attacked_y_idx, 0]
             i_y += 1
-        if i_y == (n_elementos_y):
-            i_y = 0
 
-        if i_u < (n_elementos_u): # i < 5
-            replay_u = lk_lista_u[i_u]
-            soc_max = replay_u[0][0]
-            soc_min = replay_u[1][0]
-            kW_ref = replay_u[2][0]
-            Idling_kW = replay_u[3][0] # Rever essa parte do Idling_kW
-            #print(resultado_replay)
+        if len(lk_lista_u) > 0:
+            if i_u >= len(lk_lista_u):
+                i_u = 0
+            replay_u = lk_lista_u[i_u]  # vetor 4x1 salvo
+            if attacked_u_idx.size > 0:
+                uk[attacked_u_idx, 0] = replay_u[attacked_u_idx, 0]
             i_u += 1
-        if i_u == (n_elementos_u):
-            i_u = 0
+
+    # marca tempo de ataque
     if kr < x <= kf:
         intervalos_replay.append(x)
         time_attack_replay.append(1)
     else:
         time_attack_replay.append(0)
-    soc_replay_lista_sensores.append(float(soc_ataque))
-    kWh_replay_lista_sensores.append(float(kWh_bateria))
-    kW_replay_lista_sensores.append(float(kW_bateria[0]))
-    tensao_replay_lista_sensores.append(float(tensao_bateria[0]))
-    corrente_replay_lista_sensores.append(float(corrente_bateria[0]))
-    kVA_replay_lista_sensores.append(float(kVA_bateria))
-    kW_ref_replay_atuadores.append(float(kW_ref))
-    idling_kW_replay_atuadores.append(float(Idling_kW))
-    soc_max_replay_atuadores.append(float(soc_max))
-    soc_min_replay_atuadores.append(float(soc_min))
 
+    # salva para plots (converte para float escalar)
+    soc_replay_lista_sensores.append(yk[0, 0])
+    kWh_replay_lista_sensores.append(yk[1, 0])
+    kW_replay_lista_sensores.append(yk[2, 0])
+    tensao_replay_lista_sensores.append(yk[3, 0])
+    corrente_replay_lista_sensores.append(yk[4, 0])
+    kVA_replay_lista_sensores.append(yk[5, 0])
+    kW_ref_replay_atuadores.append(uk[2, 0])
+    idling_kW_replay_atuadores.append(uk[3, 0])
+    soc_max_replay_atuadores.append(uk[0, 0])
+    soc_min_replay_atuadores.append(uk[1, 0])
+
+    # retorna valores se precisar
     return soc_ataque, kWh_bateria, kW_bateria[0], tensao_bateria[0], corrente_bateria[0], kVA_bateria, kW_ref, Idling_kW, soc_max, soc_min
 
 def injecao_dados_falsos_customizavel():
@@ -1192,31 +1255,15 @@ def injecao_dados_falsos_customizavel():
         [Idling_kW]  
         ])
 
-    if 20 <= x <= 80: #intervalo de ataque    
-        bky = np.array([
-          [resultado],  # o sinal que você irá utilizar para corromper o sinal deve ser colocado dentro das células da matriz bky
-          [resultado],
-          [resultado],
-          [resultado],
-          [resultado],
-          [resultado]
-        ])
+    if 20 <= x <= 80:   
+        bky_novo = bky + resultado
 
-        bku = np.array([
-          [resultado],  # o sinal que você irá utilizar para corromper o sinal deve ser colocado dentro das células da matriz bky
-          [resultado],
-          [resultado],
-          [resultado]
-        ])
+        bku_novo = bku + resultado
         
-        corrupcao_uk_customizavel = (np.dot(Gamma_u, bku))
+        corrupcao_uk_customizavel = (np.dot(Gamma_u, bku_novo))
         u_til_k = uk + corrupcao_uk_customizavel
-        #resultado_ataque_false_data_customizavel_1 = u_til_k
-
-        corrupcao_yk_customizavel = (np.dot(Gamma_y, bky))
+        corrupcao_yk_customizavel = (np.dot(Gamma_y, bky_novo))
         y_til_k = yk + corrupcao_yk_customizavel    
-        #resultado_ataque_false_data_customizavel_2 = y_til_k
-
         intervalos_false_data_customizable.append(x)
         time_attack_false_data_customizable.append(1)
 
@@ -1227,29 +1274,29 @@ def injecao_dados_falsos_customizavel():
         y_til_k = yk + corrupcao_yk_customizavel
         time_attack_false_data_customizable.append(0)
 
-    soc_false_injection_customizavel_lista_sensores.append(float(y_til_k[0].item()))
-    kWh_false_injection_customizavel_lista_sensores.append(float(y_til_k[1].item()))
-    kW_false_injection_customizavel_lista_sensores.append(float(y_til_k[2].item()))
-    tensao_false_injection_customizavel_lista_sensores.append(float(y_til_k[3].item()))
-    corrente_false_injection_customizavel_lista_sensores.append(float(y_til_k[4].item()))
-    kVA_false_injection_customizavel_lista_sensores.append(float(y_til_k[5].item()))
-    soc_max_false_injection_customizavel_lista_atuadores.append(float(u_til_k[0].item())) 
-    soc_min_false_injection_customizavel_lista_atuadores.append(float(u_til_k[1].item()))
-    kW_ref_false_injection_lista_customizavel_atuadores.append(float(u_til_k[2].item()))
-    idling_kW_false_injection_customizavel_lista_atuadores.append(float(u_til_k[3].item()))
+    soc_false_injection_customizavel_lista_sensores.append(y_til_k[0, 0])
+    kWh_false_injection_customizavel_lista_sensores.append(y_til_k[1, 0])
+    kW_false_injection_customizavel_lista_sensores.append(y_til_k[2, 0])
+    tensao_false_injection_customizavel_lista_sensores.append(y_til_k[3, 0])
+    corrente_false_injection_customizavel_lista_sensores.append(y_til_k[4, 0])
+    kVA_false_injection_customizavel_lista_sensores.append(y_til_k[5, 0])
+    soc_max_false_injection_customizavel_lista_atuadores.append(u_til_k[0, 0]) 
+    soc_min_false_injection_customizavel_lista_atuadores.append(u_til_k[1, 0])
+    kW_ref_false_injection_lista_customizavel_atuadores.append(u_til_k[2, 0])
+    idling_kW_false_injection_customizavel_lista_atuadores.append(u_til_k[3, 0])
 
     return u_til_k, y_til_k, corrupcao_yk_customizavel, corrupcao_uk_customizavel
 
 def somar_corrupcoes():
-    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria
+    global soc_ataque, kWh_bateria, kW_bateria, kVA_bateria, tensao_bateria, corrente_bateria, estado_anterior_atuadores, estado_anterior_sensores
     global soc_min, soc_max, kW_ref, Idling_kW, lk_lista_y,lk_lista_u, x, i_y, i_u, k0, kr, kf, Gamma_y, Gamma_u
-    global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u
+    global estado_anterior, dados_salvos_antes_do_ataque, y_tau_y, u_tau_u, y_prev, u_prev
 
     """
     Soma as corrupções yk e uk de todos os ataques.
     Retorna:
-        soma_corrupcao_yk: soma total das corrupções nos sensores
-        soma_corrupcao_uk: soma total das corrupções nos atuadores
+        y_till_k: soma total das corrupções nos sensores
+        u_till_k: soma total das corrupções nos atuadores
     """
     # Inicializa as somas
     soma_corrupcao_yk = np.zeros((6, 1))  # Matriz 6x1 para sensores
@@ -1259,8 +1306,8 @@ def somar_corrupcoes():
     # False Data
     _, _, corrupcao_yk_fd, corrupcao_uk_fd = false_data()
     
-    # DoS
-    _, _, corrupcao_yk_dos, corrupcao_uk_dos = ataque_DoS()
+    # DoS não é ativado aqui
+    #_, _, corrupcao_yk_dos, corrupcao_uk_dos = ataque_DoS()
     
     # Customizável
     try:
@@ -1301,43 +1348,61 @@ def somar_corrupcoes():
     # Soma todas as corrupções
     soma_corrupcao_yk = corrupcao_yk_fd + corrupcao_yk_custom + yk
     soma_corrupcao_uk = corrupcao_uk_fd + corrupcao_uk_custom + uk
+
+    # ==========================
+    #   INICIALIZAÇÃO CORRETA
+    # ==========================
+    if y_prev is None:
+        y_prev = soma_corrupcao_yk.copy()
+
+    if u_prev is None:
+        u_prev = soma_corrupcao_uk.copy()
     
-    # Gera valor binário (0 ou 1) com Bernoulli
-    resultado = 1 if (any(random.random() < prob for prob in prob_bernoulli_1) or any(random.random() < prob for prob in prob_bernoulli_2)) else 0
-
-
-    # Chat mandou colocar abaixo
-    if resultado == 1:
-        intervalos_dos.append(x)
-        time_attack_dos.append(1)
-    else:
-        time_attack_dos.append(0)
-
-    Sku = np.eye(4) * resultado
-    Sky = np.eye(6) * resultado
-
-    # Detecta transição de 0 → 1
-    if resultado == 1 and estado_anterior == 0: # salva o valor do sensor e do atuador 
-        y_tau_y = np.array([
-            [soma_corrupcao_yk[0][0]],
-            [soma_corrupcao_yk[1][0]],
-            [soma_corrupcao_yk[2][0]],
-            [soma_corrupcao_yk[3][0]],
-            [soma_corrupcao_yk[4][0]],
-            [soma_corrupcao_yk[5][0]]
-        ])  
-
-        u_tau_u = np.array([
-            [soma_corrupcao_uk[0][0]],
-            [soma_corrupcao_uk[1][0]],
-            [soma_corrupcao_uk[2][0]],
-            [soma_corrupcao_uk[3][0]],
-        ])
-        dados_salvos_antes_do_ataque = True
-    else:
-        dados_salvos_antes_do_ataque = False
+    def bernoulli_individual(prob_sensores, prob_atuadores):
+        """
+        Gera ataques INDIVIDUAIS para cada sensor e atuador
+        """
+        # Para cada sensor (6 elementos) - ataque independente
+        resultado_sensores = []
+        for prob in prob_sensores:
+            aleatorio = random.random()
+            resultado_sensores.append(1 if aleatorio < prob else 0)
         
-    estado_anterior = resultado  # atualiza para próxima chamada
+        # Para cada atuador (4 elementos) - ataque independente  
+        resultado_atuadores = []
+        for prob in prob_atuadores:
+            aleatorio = random.random()
+            resultado_atuadores.append(1 if aleatorio < prob else 0)
+            
+        return np.array(resultado_sensores), np.array(resultado_atuadores)
+ 
+    # ⚠️ CORREÇÃO: Use arrays para as probabilidades
+    resultado_sensores, resultado_atuadores = bernoulli_individual(prob_bernoulli_sensores, prob_bernoulli_atuadores)
+
+    # Matrizes de ataque DoS (dimensionadas pelos canais atacáveis)
+    m = Gamma_y.shape[1]   # nº de colunas de Gamma_y
+    p = Gamma_u.shape[1]   # nº de colunas de Gamma_u
+
+    Sky = np.diag(np.asarray(resultado_sensores, dtype=float)[:m])  # (m x m)
+    Sku = np.diag(np.asarray(resultado_atuadores, dtype=float)[:p])  # (p x p)
+
+
+    # DETECTA TRANSIÇÃO 0→1 PARA CADA COMPONENTE INDIVIDUALMENTE
+    for i in range(len(resultado_sensores)):
+        if resultado_sensores[i] == 1 and estado_anterior_sensores[i] == 0:
+            # usa o ÚLTIMO valor válido (antes do ataque), não o atual
+            y_tau_y[i, 0] = y_prev[i, 0]
+
+    for i in range(len(resultado_atuadores)):
+        if resultado_atuadores[i] == 1 and estado_anterior_atuadores[i] == 0:
+            u_tau_u[i, 0] = u_prev[i, 0]
+
+    # Indicador global (algum canal sob ataque neste k)
+    resultado = 1 if (resultado_sensores.any() or resultado_atuadores.any()) else 0
+        
+    # Atualiza estados anteriores para a próxima chamada
+    estado_anterior_sensores = resultado_sensores.copy()
+    estado_anterior_atuadores = resultado_atuadores.copy()
 
     Gamma_y_transposta = Gamma_y.T  #matriz gama y maiúsculo transposta
     subtracaoy = soma_corrupcao_yk - y_tau_y #diferença entre o sinal que deveria ser injetado no controlador e o último sinal medido antes do ataque   
@@ -1354,6 +1419,19 @@ def somar_corrupcoes():
     buk = multiplicacao2u * -1  #matriz resultante do ataque DoS
     multiplicacao3u = np.dot(Gamma_u , buk)
     u_til_k = soma_corrupcao_uk + multiplicacao3u  #Sinal dos sensores negado 
+
+    # salvar somente quando há ataque
+    for i in range(ny):
+        mask_dos_sensores[i].append(int(resultado_sensores[i]))
+        if resultado_sensores[i] == 1:
+            sens_t[i].append(k_step)
+            sens_y[i].append(float(y_til_k[i, 0]))
+
+    for j in range(nu):
+        mask_dos_atuadores[j].append(int(resultado_atuadores[j]))
+        if resultado_atuadores[j] == 1:
+            atu_t[j].append(k_step)
+            atu_u[j].append(float(u_til_k[j, 0]))
     
     soc_ataque_combinado.append(float(y_til_k[0].item()))
     kwh_ataque_combinado.append(float(y_til_k[1].item()))
@@ -1365,6 +1443,10 @@ def somar_corrupcoes():
     soc_min_ataque_combinado.append(float(u_til_k[1].item()))
     kW_ref_ataque_combinado.append(float(u_til_k[2].item()))
     idling_kW_ataque_combinado.append(float(u_til_k[3].item()))
+
+    # após calcular y_til_k e u_til_k (ou mesmo após os appends)
+    y_prev = soma_corrupcao_yk.copy()
+    u_prev = soma_corrupcao_uk.copy()
 
     return u_til_k, y_til_k
 
@@ -1488,22 +1570,52 @@ horas = np.linspace(0, original_steps, original_steps)
 
 # ==================== FUNÇÃO PARA REGIÕES DE ATAQUE ====================
 
-def plot_attack_regions(time_vector, step_size, label="Ataque"):
+def plot_attack_regions(time_vector, step_size,
+                        color='red',
+                        label="Ataque",
+                        shrink_last_step=False):
     in_attack = False
+    first_label_used = False
+
     for i in range(len(time_vector)):
         if time_vector[i] == 1 and not in_attack:
             start = i
             in_attack = True
+
         elif time_vector[i] == 0 and in_attack:
             end = i
-            plt.axvspan(start * step_size, end * step_size, color='red', alpha=0.2, label=label if start == 0 else "")
+
+            # decide até onde vai o sombreado
+            if shrink_last_step:
+                x_end = (end - 1) * step_size
+            else:
+                x_end = end * step_size
+
+            plt.axvspan(start * step_size,
+                        x_end,
+                        color=color,
+                        alpha=0.25,
+                        label=label if not first_label_used else "")
+
+            first_label_used = True
             in_attack = False
+
+    # caso termine em ataque
     if in_attack:
-        plt.axvspan(start * step_size, len(time_vector) * step_size, color='red', alpha=0.2, label=label if start == 0 else "")
+        if shrink_last_step:
+            x_end = (len(time_vector) - 1) * step_size
+        else:
+            x_end = len(time_vector) * step_size
+
+        plt.axvspan(start * step_size,
+                    x_end,
+                    color=color,
+                    alpha=0.25,
+                    label=label if not first_label_used else "")
 
 plotar_resultados_ataques(horas)
 
-# ============================= SALVANDO EM CSV ==============================
+#============================= SALVANDO EM CSV ==============================
 
 # saida_csv = os.path.join(results_path, "resultados_simulacao.csv")
 
@@ -1518,10 +1630,7 @@ plotar_resultados_ataques(horas)
 #             soc_lista_2[i],
 #             soc_max_lista[i],
 #             soc_min_lista[i],
-#             soh_lista[i],
-#             kW_painel_lista[i],
-#             kW_carga_lista[i],
-#             kW_bateria_lista[i]
+#             soh_lista[i]
 #         ])
 
 # print(f" Resultados salvos em: {saida_csv}")

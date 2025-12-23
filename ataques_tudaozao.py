@@ -686,7 +686,8 @@ def ataque_DoS():
     #print(f"yk:{yk}")
     # Gera valor binário (0 ou 1) com Bernoulli
     #resultado = bernoulli(0.85)
-    resultado = 1 if random.random() < prob_bernoulli else 0
+    aleatorio = random.random()
+    resultado = 1 if aleatorio < prob_bernoulli else 0
     # Chat mandou colocar abaixo
     if resultado == 1:
         intervalos_dos.append(x)
