@@ -268,7 +268,9 @@ def plotar_resultados_ataques(horas):
         # SOC
         plt.figure()
         plt.plot(horas, soc_lista_2, label="SOC sem Ataques")
-        plt.title("SOC"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show() 
+        plt.title("SOC", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc.pdf", format="pdf", bbox_inches='tight')
+        plt.show() 
         # kWh
         plt.figure()
         plt.plot(horas, kWh_lista, label="kWh sem Ataques")
@@ -304,39 +306,56 @@ def plotar_resultados_ataques(horas):
         # Idling_kW
         plt.figure()
         plt.plot(horas, idling_kW_lista, label="Idling_kW sem Ataques")
-        plt.title("Idling_kW"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("Idling_kW", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idling.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
         
     # SOC
     if enable_dos and sensor_soc:
         plt.figure()
-        plt.plot(horas, soc_dos_lista_sensores, label="SOC Sensor DoS")
+        plt.plot(horas, soc_lista_2, label="SOC")
+        plt.plot(horas, soc_dos_lista_sensores, label="SOC DoS")
         plot_attack_regions(mask_dos_sensores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
-        plt.title("SOC - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("SOC - Ataque DoS", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc_dos.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_false_data and sensor_soc:
         plt.figure()
-        plt.plot(horas, soc_false_injection_lista_sensores, label="SOC Sensor False Data")
+        plt.plot(horas, soc_lista_2, label="SOC")
+        plt.plot(horas, soc_false_injection_lista_sensores, label="SOC Dados Falsos")
         plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
-        plt.title("SOC - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("SOC - Ataque Dados Falsos", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc_false_data.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_replay and sensor_soc:
         plt.figure()
-        plt.plot(horas, soc_replay_lista_sensores, label="SOC Sensor Replay")
+        plt.plot(horas, soc_lista_2, label="SOC")
+        plt.plot(horas, soc_replay_lista_sensores, label="SOC Replay")
         plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
         plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
-        plt.title("SOC - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("SOC - Ataque Replay", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc_replay.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_false_data_customizable and sensor_soc:
         plt.figure()
-        plt.plot(horas, soc_false_injection_customizavel_lista_sensores, label="SOC Sensor False Data Customizable")
+        plt.plot(horas, soc_lista_2, label="SOC")
+        plt.plot(horas, soc_false_injection_customizavel_lista_sensores, label="SOC Dados Falsos Customizável")
         plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
-        plt.title("SOC - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("SOC - Ataque Dados Falsos Customizável", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc_customizavel.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_combined_attack and sensor_soc:
         plt.figure()
-        plt.plot(horas, soc_ataque_combinado, label="SOC Sensor Ataques Combinados")
+        plt.plot(horas, soc_lista_2, label="SOC")
+        plt.plot(horas, soc_ataque_combinado, label="SOC Ataques Combinados")
         plot_attack_regions(mask_dos_sensores[0], step_size=1, label="Ataque DoS", shrink_last_step=True)
-        plt.title("SOC - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("SOC - Ataques Combinados", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("SOC (%)", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_soc_combinado.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     # Energia
     if enable_dos and sensor_kwh:
@@ -601,80 +620,49 @@ def plotar_resultados_ataques(horas):
 
     if enable_dos and atuador_idling_kw:
         plt.figure()
-        plt.plot(horas, idling_kW_dos_atuadores, label="Idling_kW Atuador DoS")
+        plt.plot(horas, idling_kW_lista, label="Idling_kW")
+        plt.plot(horas, idling_kW_dos_atuadores, label="Idling_kW DoS")
         plot_attack_regions(mask_dos_atuadores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
-        plt.title("Idling_kW - Ataque DoS"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("Idling_kW - Ataque DoS", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idle_dos.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_false_data and atuador_idling_kw:
         plt.figure()
-        plt.plot(horas, idling_kW_false_injection_lista_atuadores, label="Idling_kW Atuador False Data")
+        plt.plot(horas, idling_kW_lista, label="Idling_kW")
+        plt.plot(horas, idling_kW_false_injection_lista_atuadores, label="Idling_kW Dados Falsos")
         plot_attack_regions(time_attack_false_data, step_size, shrink_last_step=True)
-        plt.title("Idling_kW - Ataque False Data"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("Idling_kW - Ataque Dados Falsos", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idle_false_data.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_replay and atuador_idling_kw:
         plt.figure()
-        plt.plot(horas, idling_kW_replay_atuadores, label="Idling_kW Atuador Replay")
+        plt.plot(horas, idling_kW_lista, label="Idling_kW")
+        plt.plot(horas, idling_kW_replay_atuadores, label="Idling_kW Replay")
         plot_attack_regions(mask_replay_coleta, step_size, color='yellow', label='Fase de Coleta', shrink_last_step=False)
         plot_attack_regions(time_attack_replay, step_size, color='red', label='Fase de Ataque', shrink_last_step=True)
-        plt.title("Idling_kW - Ataque Replay"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("Idling_kW - Ataque Replay", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idle_replay.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_false_data_customizable and atuador_idling_kw:
         plt.figure()
-        plt.plot(horas, idling_kW_false_injection_customizavel_lista_atuadores, label="Idling_kW Atuador False Data Customizable")
+        plt.plot(horas, idling_kW_lista, label="Idling_kW")
+        plt.plot(horas, idling_kW_false_injection_customizavel_lista_atuadores, label="Idling_kW Dados Falsos Customizável")
         plot_attack_regions(time_attack_false_data_customizable, step_size, shrink_last_step=True)
-        plt.title("Idling_kW - Ataque False Data Customizable"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
+        plt.title("Idling_kW - Ataque Dados Falsos Customizável", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idle_customizavel.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
     if enable_combined_attack and atuador_idling_kw:
         plt.figure()
-        plt.plot(horas, idling_kW_ataque_combinado, label="Idling_kW Atuador Ataques Combinados")
+        plt.plot(horas, idling_kW_lista, label="Idling_kW")
+        plt.plot(horas, idling_kW_ataque_combinado, label="Idling_kW Ataques Combinados")
         plot_attack_regions(mask_dos_atuadores[3], step_size=1, label="Ataque DoS", shrink_last_step=True)
-        plt.title("Idling_kW - Ataques Combinados"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-
-    #Plotagem sem os Ataques
-    if modo == "0":
-        # SOC
-        plt.figure()
-        plt.plot(horas, soc_lista, label="SOC sem Ataques")
-        plt.title("SOC"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show() 
-        # kWh
-        plt.figure()
-        plt.plot(horas, kWh_dos_lista_sensores, label="kWh sem Ataques")
-        plt.title("Energia (kWh)"); plt.xlabel("Tempo (h)"); plt.ylabel("kWh"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # kW
-        plt.figure()
-        plt.plot(horas, kW_lista, label="kW sem Ataques")
-        plt.title("Potência Ativa (kW)"); plt.xlabel("Tempo (h)"); plt.ylabel("kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # Tensão
-        plt.figure()
-        plt.plot(horas, tensao_lista, label="Tensão sem Ataques")
-        plt.title("Tensão"); plt.xlabel("Tempo (h)"); plt.ylabel("V"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # Corrente
-        plt.figure()
-        plt.plot(horas, correntes_lista, label="Corrente sem Ataques")
-        plt.title("Corrente"); plt.xlabel("Tempo (h)"); plt.ylabel("A"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # kVA
-        plt.figure()
-        plt.plot(horas, kVA_lista, label="kVA sem Ataques")
-        plt.title("Potência Aparente"); plt.xlabel("Tempo (h)"); plt.ylabel("kVA"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # SOC_máx
-        plt.figure()
-        plt.plot(horas, soc_max_lista, label="SOC Máx sem Ataques")
-        plt.title("SOC Máximo"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÁX (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # SOC_mín
-        plt.figure()
-        plt.plot(horas, soc_min_lista, label="SOC Mín sem Ataques")
-        plt.title("SOC Mínimo"); plt.xlabel("Tempo (h)"); plt.ylabel("SOC_MÍN (%)"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # kW_ref
-        plt.figure()
-        plt.plot(horas, kW_ref_lista, label="kW_ref sem Ataques")
-        plt.title("kW_ref"); plt.xlabel("Tempo (h)"); plt.ylabel("kW_ref"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        # Idling_kW
-        plt.figure()
-        plt.plot(horas, idling_kW_lista, label="Idling_kW sem Ataques")
-        #plot_attack_regions(time_attack_, step_size)
-        plt.title("Idling_kW"); plt.xlabel("Tempo (h)"); plt.ylabel("Idling_kW"); plt.legend(); plt.grid(); plt.tight_layout(); plt.show()
-        
-    
+        plt.title("Idling_kW - Ataques Combinados", fontsize=18); plt.xlabel("Tempo (h)", fontsize=18); plt.ylabel("Idling_kW", fontsize=18); plt.legend(); plt.grid(); plt.tight_layout(); 
+        plt.savefig("grafico_idle_combinados.pdf", format="pdf", bbox_inches='tight')
+        plt.show()
 
 # Instância do OpenDSS
 dss = py_dss_interface.DSS()
@@ -1562,6 +1550,7 @@ for step in range(original_steps):
 
     dss.solution._finish_time_step()
 
+print("Pasta atual:", os.getcwd())
 print(f"\n Simulação finalizada. Total de ciclos completos: {contador_ciclos}")
 
 # ============================= PLOT ==============================
